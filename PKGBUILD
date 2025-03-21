@@ -4,7 +4,7 @@
 _target=aarch64-linux-gnu
 pkgname=$_target-gcc
 pkgver=14.2.0
-pkgrel=1
+pkgrel=2
 #_snapshot=8-20190111
 pkgdesc='The GNU Compiler Collection - cross compiler for ARM64 target'
 arch=(x86_64)
@@ -79,6 +79,10 @@ build() {
 
 package() {
   cd gcc-build
+
+  # handle lib vs lib64; for regular gcc this is handled by filesystem package
+  mkdir -p "$pkgdir"/usr/$_target/lib
+  ln -s ./lib "$pkgdir"/usr/$_target/lib64
 
   make DESTDIR="$pkgdir" install-gcc install-target-{libgcc,libstdc++-v3,libgomp,libgfortran,libquadmath,libatomic}
 

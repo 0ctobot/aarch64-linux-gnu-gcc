@@ -1,36 +1,46 @@
 # Maintainer: Anatol Pomozov <anatol.pomozov@gmail.com>
 # Maintainer: Eli Schwartz <eschwartz@archlinux.org>
+# Contributor: Adam W. Willis <return.of.octobot@gmail.com> (Neutrino GCC)
+
+# Neutrino GCC: GCC trunk plus Sultan Alsawaf's simple_gcc fixes and our own,
+# from https://github.com/0ctobot/gcc (branch neutrino/gcc-17). The source is a
+# git archive of $_commit; make it with:
+#   git -C ~/toolchains/src/gcc archive --format=tar \
+#     --prefix=gcc-neutrino-${_commit:0:9}/ $_commit | zstd -T4 -10 \
+#     -o gcc-neutrino-${_commit:0:9}.tar.zst
+# The host tools are built by the bootstrapped Neutrino GCC host compiler in
+# $_hostcc with LTO, linking libstdc++ and libgcc statically so that the
+# package doesn't depend on it at run time.
 
 _target=aarch64-linux-gnu
-pkgname=$_target-gcc
-pkgver=16.2.0
+pkgname=$_target-gcc-neutrino
+_commit=ca85834df7e5334db727891b16ec09b6714187aa
+_basever=17.0.0
+_datestamp=20261110
+pkgver=$_basever.r$_datestamp.g${_commit:0:9}
 pkgrel=1
-#_snapshot=8-20190111
-pkgdesc='The GNU Compiler Collection - cross compiler for ARM64 target'
+pkgdesc='The GNU Compiler Collection - cross compiler for ARM64 target (Neutrino GCC)'
 arch=(x86_64)
-url='https://gcc.gnu.org/'
+url='https://github.com/0ctobot/gcc'
 license=(GPL LGPL FDL)
 depends=($_target-binutils $_target-glibc libmpc zlib libisl zstd)
 makedepends=(gmp mpfr)
+provides=("$_target-gcc=$_basever")
+conflicts=($_target-gcc)
 options=(!emptydirs !strip staticlibs !lto)
-source=(https://ftp.gnu.org/gnu/gcc/gcc-$pkgver/gcc-$pkgver.tar.xz{,.sig})
-        #https://gcc.gnu.org/pub/gcc/snapshots/$_snapshot/gcc-$_snapshot.tar.xz
-sha256sums=('e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e'
-            'SKIP')
-validpgpkeys=(D3A93CAD751C2AF4F8C7AD516C35B99309B5FA62  # Jakub Jelinek <jakub@redhat.com>
-              33C235A34C46AA3FFB293709A328C3A2C3C45C06  # Jakub Jelinek <jakub@redhat.com>
-              13975A70E63C361C73AE69EF6EEB81F8981C74C7) # Richard Guenther <richard.guenther@gmail.com>
+source=(gcc-neutrino-${_commit:0:9}.tar.zst)
+sha256sums=('ccdaa6bcb9286b68fcf9629bc6913d4f529a8ddb70794dc468b7b104abfea3a5')
 
-if [ -n "$_snapshot" ]; then
-  _basedir=gcc-$_snapshot
-else
-  _basedir=gcc-$pkgver
-fi
+_basedir=gcc-neutrino-${_commit:0:9}
+_hostcc=$HOME/toolchains/gcc-17-host
 
 prepare() {
   cd $_basedir
 
-  echo $pkgver > gcc/BASE-VER
+  [[ $(cat gcc/BASE-VER) == $_basever && $(cat gcc/DATESTAMP) == $_datestamp ]] ||
+    { echo "BASE-VER/DATESTAMP don't match the PKGBUILD"; return 1; }
+  "$_hostcc"/bin/gcc --version | head -1 | grep -q 'Neutrino GCC' ||
+    { echo "$_hostcc isn't a Neutrino GCC host compiler"; return 1; }
 
   # Do not run fixincludes
   sed -i 's@\./fixinc\.sh@-c true@' gcc/Makefile.in
@@ -54,6 +64,20 @@ build() {
   CXXFLAGS=${CXXFLAGS/-Werror=format-security/}
   unset FFLAGS FCFLAGS
 
+  # Probe and build the target libraries with the binutils trunk that the
+  # aarch64-linux-gnu-binutils-trunk package installs
+  export PATH="$HOME/toolchains/binutils-trunk/bin:$PATH"
+  $_target-as --version | head -1 | grep -q 'Binutils trunk' ||
+    { echo "binutils trunk not found"; return 1; }
+
+  # Build the host tools with the Neutrino host compiler and LTO; the
+  # generator programs run during the build don't need LTO
+  export CC="$_hostcc"/bin/gcc CXX="$_hostcc"/bin/g++
+  export AR="$_hostcc"/bin/gcc-ar RANLIB="$_hostcc"/bin/gcc-ranlib NM="$_hostcc"/bin/gcc-nm
+  export CFLAGS_FOR_BUILD="$CFLAGS" CXXFLAGS_FOR_BUILD="$CXXFLAGS"
+  CFLAGS+=" -flto=jobserver"
+  CXXFLAGS+=" -flto=jobserver"
+
   "$srcdir"/$_basedir/configure \
       --prefix=/usr \
       --program-prefix=$_target- \
@@ -73,9 +97,12 @@ build() {
       --enable-lto --enable-plugin --enable-install-libiberty \
       --with-linker-hash-style=gnu --enable-gnu-indirect-function \
       --disable-multilib --disable-werror \
-      --enable-checking=release
+      --enable-checking=release \
+      --with-static-standard-libraries \
+      "--with-pkgversion=Neutrino GCC ${_commit:0:9}"
 
-  make
+  # More jobs than this runs this machine out of memory during LTO
+  make -j6
 }
 
 package() {
@@ -88,6 +115,7 @@ package() {
   make DESTDIR="$pkgdir" install-gcc install-target-{libgcc,libstdc++-v3,libgomp,libgfortran,libquadmath,libatomic}
 
   # strip target binaries
+  export PATH="$HOME/toolchains/binutils-trunk/bin:$PATH"
   find "$pkgdir"/usr/lib/gcc/$_target/ "$pkgdir"/usr/$_target/lib \
        -type f -and \( -name \*.a -or -name \*.o \) \
        -exec $_target-objcopy -R .comment -R .note -R .debug_info -R .debug_aranges \
@@ -97,8 +125,14 @@ package() {
   # strip host binaries
   find "$pkgdir"/usr/bin/ "$pkgdir"/usr/lib/gcc/$_target/ -type f -and \( -executable \) -exec strip '{}' \;
 
+  # The host compiler is only needed to build the package
+  if find "$pkgdir"/usr/bin "$pkgdir"/usr/lib/gcc/$_target -type f -executable \
+       -exec ldd '{}' \; 2>/dev/null | grep -E 'not found|gcc-17-host'; then
+    echo "host binaries depend on $_hostcc"; return 1
+  fi
+
   # Remove files that conflict with host gcc package
   rm -r "$pkgdir"/usr/share/man/man7
   rm -r "$pkgdir"/usr/share/info
-  rm -r "$pkgdir"/usr/share/gcc-$pkgver
+  rm -r "$pkgdir"/usr/share/gcc-$_basever
 }

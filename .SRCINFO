@@ -1,8 +1,8 @@
-pkgbase = aarch64-linux-gnu-gcc
-	pkgdesc = The GNU Compiler Collection - cross compiler for ARM64 target
-	pkgver = 16.2.0
+pkgbase = aarch64-linux-gnu-gcc-neutrino
+	pkgdesc = The GNU Compiler Collection - cross compiler for ARM64 target (Neutrino GCC)
+	pkgver = 17.0.0.r20261110.gca85834df
 	pkgrel = 1
-	url = https://gcc.gnu.org/
+	url = https://github.com/0ctobot/gcc
 	arch = x86_64
 	license = GPL
 	license = LGPL
@@ -15,16 +15,13 @@ pkgbase = aarch64-linux-gnu-gcc
 	depends = zlib
 	depends = libisl
 	depends = zstd
+	provides = aarch64-linux-gnu-gcc=17.0.0
+	conflicts = aarch64-linux-gnu-gcc
 	options = !emptydirs
 	options = !strip
 	options = staticlibs
 	options = !lto
-	source = https://ftp.gnu.org/gnu/gcc/gcc-16.2.0/gcc-16.2.0.tar.xz
-	source = https://ftp.gnu.org/gnu/gcc/gcc-16.2.0/gcc-16.2.0.tar.xz.sig
-	validpgpkeys = D3A93CAD751C2AF4F8C7AD516C35B99309B5FA62
-	validpgpkeys = 33C235A34C46AA3FFB293709A328C3A2C3C45C06
-	validpgpkeys = 13975A70E63C361C73AE69EF6EEB81F8981C74C7
-	sha256sums = e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e
-	sha256sums = SKIP
+	source = gcc-neutrino-ca85834df.tar.zst
+	sha256sums = ccdaa6bcb9286b68fcf9629bc6913d4f529a8ddb70794dc468b7b104abfea3a5
 
-pkgname = aarch64-linux-gnu-gcc
+pkgname = aarch64-linux-gnu-gcc-neutrino

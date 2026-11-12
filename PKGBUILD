@@ -99,7 +99,7 @@ build() {
       --disable-multilib --disable-werror \
       --enable-checking=release \
       --with-static-standard-libraries \
-      "--with-pkgversion=Neutrino GCC ${_commit:0:9}"
+      "--with-pkgversion=Neutrino GCC ${_commit:0:9}, +lto"
 
   # More jobs than this runs this machine out of memory during LTO
   make -j6

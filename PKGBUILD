@@ -14,9 +14,9 @@
 
 _target=aarch64-linux-gnu
 pkgname=$_target-gcc-neutrino
-_commit=ca85834df7e5334db727891b16ec09b6714187aa
+_commit=9b380445d547cf2eb1fdd70e8a8ad9fa9dab95b4
 _basever=17.0.0
-_datestamp=20261110
+_datestamp=20261112
 pkgver=$_basever.r$_datestamp.g${_commit:0:9}
 pkgrel=1
 pkgdesc='The GNU Compiler Collection - cross compiler for ARM64 target (Neutrino GCC)'
@@ -29,7 +29,7 @@ provides=("$_target-gcc=$_basever")
 conflicts=($_target-gcc)
 options=(!emptydirs !strip staticlibs !lto)
 source=(gcc-neutrino-${_commit:0:9}.tar.zst)
-sha256sums=('ccdaa6bcb9286b68fcf9629bc6913d4f529a8ddb70794dc468b7b104abfea3a5')
+sha256sums=('73ab34fc833d366ec351be0b50ac12a84549c9a58a20d207922bac14ae8a8d0e')
 
 _basedir=gcc-neutrino-${_commit:0:9}
 _hostcc=$HOME/toolchains/gcc-17-host

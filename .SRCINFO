@@ -1,6 +1,6 @@
 pkgbase = aarch64-linux-gnu-gcc-neutrino
 	pkgdesc = The GNU Compiler Collection - cross compiler for ARM64 target (Neutrino GCC)
-	pkgver = 17.0.0.r20261110.gca85834df
+	pkgver = 17.0.0.r20261112.g9b380445d
 	pkgrel = 1
 	url = https://github.com/0ctobot/gcc
 	arch = x86_64
@@ -21,7 +21,7 @@ pkgbase = aarch64-linux-gnu-gcc-neutrino
 	options = !strip
 	options = staticlibs
 	options = !lto
-	source = gcc-neutrino-ca85834df.tar.zst
-	sha256sums = ccdaa6bcb9286b68fcf9629bc6913d4f529a8ddb70794dc468b7b104abfea3a5
+	source = gcc-neutrino-9b380445d.tar.zst
+	sha256sums = 73ab34fc833d366ec351be0b50ac12a84549c9a58a20d207922bac14ae8a8d0e
 
 pkgname = aarch64-linux-gnu-gcc-neutrino

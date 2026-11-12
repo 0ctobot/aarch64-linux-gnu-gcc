@@ -33,6 +33,9 @@ sha256sums=('ccdaa6bcb9286b68fcf9629bc6913d4f529a8ddb70794dc468b7b104abfea3a5')
 
 _basedir=gcc-neutrino-${_commit:0:9}
 _hostcc=$HOME/toolchains/gcc-17-host
+# Optional PGO profile from ~/toolchains/build-v2.sh PGO=1 for this exact
+# commit: the cross compiler trained on a kernel build
+_pgo=$HOME/toolchains/pgo/${_commit:0:9}
 
 prepare() {
   cd $_basedir
@@ -77,6 +80,16 @@ build() {
   export CFLAGS_FOR_BUILD="$CFLAGS" CXXFLAGS_FOR_BUILD="$CXXFLAGS"
   CFLAGS+=" -flto=jobserver"
   CXXFLAGS+=" -flto=jobserver"
+  _features=", +lto"
+  # The profile files are named by object path relative to the build
+  # directory; code that differs from the profiled build (other languages,
+  # paths) only loses its profile, hence no coverage-mismatch errors
+  if [[ -n $(find "$_pgo" -name '*.gcda' -print -quit 2>/dev/null) ]]; then
+    _pgoflags=" -fprofile-use=$_pgo -fprofile-prefix-path=$srcdir/gcc-build"
+    _pgoflags+=" -fprofile-partial-training -Wno-missing-profile -Wno-error=coverage-mismatch"
+    CFLAGS+=$_pgoflags CXXFLAGS+=$_pgoflags
+    _features+=", +pgo"
+  fi
 
   "$srcdir"/$_basedir/configure \
       --prefix=/usr \
@@ -99,7 +112,7 @@ build() {
       --disable-multilib --disable-werror \
       --enable-checking=release \
       --with-static-standard-libraries \
-      "--with-pkgversion=Neutrino GCC ${_commit:0:9}, +lto"
+      "--with-pkgversion=Neutrino GCC ${_commit:0:9}$_features"
 
   # More jobs than this runs this machine out of memory during LTO
   make -j6

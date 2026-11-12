@@ -83,10 +83,13 @@ build() {
   _features=", +lto"
   # The profile files are named by object path relative to the build
   # directory; code that differs from the profiled build (other languages,
-  # paths) only loses its profile, hence no coverage-mismatch errors
+  # paths) only loses its profile, hence no coverage-mismatch errors.  These
+  # CFLAGS differ from the profiled build's, which can leave a function's
+  # counters slightly inconsistent: -fprofile-correction smooths them over
   if [[ -n $(find "$_pgo" -name '*.gcda' -print -quit 2>/dev/null) ]]; then
     _pgoflags=" -fprofile-use=$_pgo -fprofile-prefix-path=$srcdir/gcc-build"
-    _pgoflags+=" -fprofile-partial-training -Wno-missing-profile -Wno-error=coverage-mismatch"
+    _pgoflags+=" -fprofile-partial-training -fprofile-correction"
+    _pgoflags+=" -Wno-missing-profile -Wno-error=coverage-mismatch"
     CFLAGS+=$_pgoflags CXXFLAGS+=$_pgoflags
     _features+=", +pgo"
   fi

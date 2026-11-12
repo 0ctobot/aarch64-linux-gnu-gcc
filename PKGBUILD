@@ -33,9 +33,11 @@ sha256sums=('73ab34fc833d366ec351be0b50ac12a84549c9a58a20d207922bac14ae8a8d0e')
 
 _basedir=gcc-neutrino-${_commit:0:9}
 _hostcc=$HOME/toolchains/gcc-17-host
-# Optional PGO profile from ~/toolchains/build-v2.sh PGO=1 for this exact
-# commit: the cross compiler trained on a kernel build
-_pgo=$HOME/toolchains/pgo/${_commit:0:9}
+# Optional PGO profile for this exact commit: ~/toolchains/pkg-pgo.sh builds
+# this package with NEUTRINO_PGO=train (instrumented), trains it with a kernel
+# build and keeps the profile here, so it matches this build's own flags,
+# options and source paths
+_pgo=$HOME/toolchains/pgo/${_commit:0:9}-pkg
 
 prepare() {
   cd $_basedir
@@ -78,20 +80,30 @@ build() {
   export CC="$_hostcc"/bin/gcc CXX="$_hostcc"/bin/g++
   export AR="$_hostcc"/bin/gcc-ar RANLIB="$_hostcc"/bin/gcc-ranlib NM="$_hostcc"/bin/gcc-nm
   export CFLAGS_FOR_BUILD="$CFLAGS" CXXFLAGS_FOR_BUILD="$CXXFLAGS"
+  if [[ ${NEUTRINO_PGO:-} == train ]]; then
+    # Instrumented build for collecting the profile.  No LTO: GCC instruments
+    # each function before LTO runs, so the profile fits the LTO build too
+    rm -rf "$_pgo"; mkdir -p "$_pgo"
+    _pgoflags=" -fprofile-generate=$_pgo -fprofile-update=prefer-atomic"
+    _pgoflags+=" -fprofile-prefix-path=$srcdir/gcc-build"
+    CFLAGS+=$_pgoflags CXXFLAGS+=$_pgoflags
+    # Some programs (c++tools) link without CXXFLAGS but need libgcov
+    LDFLAGS+=" -fprofile-generate=$_pgo"
+    _features=", profiling"
+  else
   CFLAGS+=" -flto=jobserver"
   CXXFLAGS+=" -flto=jobserver"
   _features=", +lto"
   # The profile files are named by object path relative to the build
-  # directory; code that differs from the profiled build (other languages,
-  # paths) only loses its profile, hence no coverage-mismatch errors.  These
-  # CFLAGS differ from the profiled build's, which can leave a function's
-  # counters slightly inconsistent: -fprofile-correction smooths them over
+  # directory.  Code the training build didn't run only loses its profile,
+  # and -fprofile-correction repairs counters that don't quite add up
   if [[ -n $(find "$_pgo" -name '*.gcda' -print -quit 2>/dev/null) ]]; then
     _pgoflags=" -fprofile-use=$_pgo -fprofile-prefix-path=$srcdir/gcc-build"
     _pgoflags+=" -fprofile-partial-training -fprofile-correction"
     _pgoflags+=" -Wno-missing-profile -Wno-error=coverage-mismatch"
     CFLAGS+=$_pgoflags CXXFLAGS+=$_pgoflags
     _features+=", +pgo"
+  fi
   fi
 
   "$srcdir"/$_basedir/configure \
